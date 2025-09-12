@@ -1,0 +1,4 @@
+x is equal to 1.
+x equals 1.
+x = 1.
+x == 1.

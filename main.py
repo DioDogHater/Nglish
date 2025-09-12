@@ -1,3 +1,8 @@
+from lexer import tokenize
+# from parser 
+
+import sys
+
 def open_file(path : str, mode : str = "r"):
     try:
         file = open(path, mode)
@@ -15,3 +20,13 @@ def read_file(path : str):
     except OSError as e:
         print(e)
         return e
+
+if len(sys.argv) < 2:
+    raise Exception("")
+
+path = sys.argv[1]
+code = read_file(path)
+tokens = tokenize(code) # the lexer will tokenize all the words
+
+for tk in tokens:
+    print(tk)

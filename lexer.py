@@ -1,73 +1,104 @@
-END_LINE_SYMBOL = '.'
-WORD_SEPARATOR = ' '
-SPECIAL_CHARACTERS : list = [',','{','}',":","(",")"]
+WHITESPACE = [" ","\t"]
+SPECIAL_CHARACTERS : list = [',','{','}',":","(",")","."]
 
-class Token:
-    IDENTIFIER = 0
-    EQ = 1
-    NUMBER_CONST = 2
-    TEXT_CONST = 3
-    BOOL_CONST = 5
-    LIST_OPEN = 6
-    LIST_CLOSE = 7
-
-    """
-    NOT_EQ
-    IF
-    ELSE 
-    REPEAT
-    WHILE
-    """
-    
-    def __init__(self, type, value = None):
+class Token: 
+    def __init__(self, type:str, value = None):
         self.type, self.value = (type, value)
+    def __str__(self): return f"({self.type}: {self.value})"
+    def __repr__(self): return self.__str__()
+    
+    #TOKEN TYPES:
+    # equals, identifier, 
+    # text_const, num_const, bool_const, list_const, 
+    # dot, comma, indentation
 
 def is_special_character(char:str):
     return char in SPECIAL_CHARACTERS
 
-def get_sentences(code : str):
-    return code.split(END_LINE_SYMBOL)
+def get_lines(code : str):
+    return code.split("\n")
 
-def get_words(sentence : str):
+def get_words(line : str):
     words = []
     current_word = ""
-    end_string = -1
-    for letter in range(len(sentence)):
-        if letter <= end_string:
+    end_index = -1
+    word_count = 0
+    for letter in range(len(line)):
+        # Skip to the next character we want
+        if letter <= end_index:
             continue
-
-        if sentence[letter] == "'" or sentence[letter] == '"':
+        
+        # Get a whole string
+        if line[letter] == '"':
             if len(current_word) > 0: words.append(current_word)
-            words.append(sentence[letter])
-            skip = False
-            for i in range(letter+1, len(sentence)):
-                if i != sentence[letter]:
-                    current_word += sentence[i]
+            current_word = '"'
+            for i in range(letter+1, len(line)):
+                if line[i] != line[letter]:
+                    current_word += line[i]
                 else:
                     words.append(current_word)
                     current_word = ""
-                    words.append(sentence[i])
-                    end_string = i
+                    end_index = i
+                    word_count += 1
                     break
-            if end_string > 0: continue
+            if end_index > 0: continue
             raise Exception("No closing quotes for text!")
         
-        if sentence[letter] == WORD_SEPARATOR:
-            if len(current_word) > 0: words.append(current_word)
+        # Whitespace
+        if line[letter] in WHITESPACE:
+            if len(current_word) > 0:
+                words.append(current_word)
+                word_count += 1
+            elif word_count == 0: #no words yet
+                # Find the last whitespace
+                for i in range(letter+1, len(line)):
+                    if not line[i] in WHITESPACE:
+                        current_word = " " * (i - letter)
+                        words.append(current_word)
+                        end_index = i
+                        break
+            
             current_word = ""
             continue
-
-        if is_special_character(sentence[letter]):
+        
+        # Ignore character if its not printable
+        if not line[letter].isprintable():
+            continue
+        
+        # Special characters 
+        if is_special_character(line[letter]):
             if len(current_word) > 0: words.append(current_word)
             current_word = ""
-            words.append(sentence[letter]) #appends the special character as a word
+            words.append(line[letter]) #appends the special character as a word
+            word_count += 1
         
-        current_word += sentence[letter]
+        current_word += line[letter]
+    return words
 
-last_tokens = []
+last_words = []
+
+def peek_word(words : list, val = "", i : int = 0):
+    if len(words) >= i:
+        if val == "":
+            return True
+        return (val(words[i]) if callable(val) else words[i] == words)
+    else:
+        return False
+
+def consume_word(words : list, req = ""):
+    global last_words
+    
+    if req == "":
+        last_words.append(words.pop(0))
+        return True
+    elif (req(words[0]) if callable(req) else words[0] == req):
+        last_words.append(words.pop(0))
+        return True
+    else:
+        return False
 
 def consume_words(words : list, *required : str):
-    global last_tokens
+    global last_words
 
     # Check if the words list holds enough words
     if len(words) < len(required):
@@ -75,50 +106,66 @@ def consume_words(words : list, *required : str):
     
     # Check if a word is not equal in the required sequence
     for i in range(len(required)):
-        if words[i] != required[i]:
+        if (not required[i](words[i]) if callable(required[i]) else words[i] != required[i]):
             return False
     
     # Pop and save the last tokens
     for i in range(len(required)):
-        last_tokens.append(words.pop(0))
+        last_words.append(words.pop(0))
     
     return True
 
-def consume_words_until(words : list, end : str):
-    global last_tokens
-
-    for i in range(len(words)):
-        if words[i] == end:
-            for _ in range(i+1):
-                last_tokens.append(words.pop(0))
-            return True
-    
-    return False
-
 
 def tokenize(code : str):
-    global last_tokens
-
-    code_tokens = []
-    for sentence in get_sentences(code):
-        tokens = []
-
-        words = get_words(sentence)
+    global last_words
+    #//LORE:// lore accurately the Nglish tokenizer is a dog who eats your english homework and digests it into the parser
+    
+    tokens = []
+    for line in get_lines(code):
+        words = get_words(line)
+        print(words)
 
         while len(words) != 0:
-            last_tokens = []
-            if (consume_words(words, "equals") or
-                consume_words(words, "is", "equal", "to") or
-                consume_words(words, "=") or
-                consume_words(words, "==")):
-                # Equality / assignment
-                tokens.append(Token(Token.EQ))
-            elif consume_words(words, '"'):
+            last_words = []
                 
-                tokens.append(Token(Token.TEXT_CONST, " ".join()))
+            # In case of an empty word
+            if consume_word(words, lambda x: len(x) == 0):
+                continue
+            
+            ### KEYWORDS ###
+            # Equality / assignment
+            if (consume_word(words, "equals") or
+                consume_words(words, "is", "equal", "to") or
+                consume_word(words, "=") or
+                consume_word(words, "==")):
+                tokens.append(Token("equals"))
+            
+
+            ### SYNTAX AND LITERALS ###
+            # Strings (text)
+            elif consume_word(words,lambda x: str.startswith(x,'"')): 
+                tokens.append(Token("text_const", words[0].removeprefix('"')))
+                consume_word(words)
+            
+            # Numbers
+            elif consume_word(words, str.isnumeric):
+                if peek_word(words, 0) and peek_word(words, str.isnumeric):
+                    consume_word(words)
+                    consume_word(words)
+                num_lit = float("".join(last_words))
+                if num_lit.is_integer(): num_lit = int(num_lit)
+                tokens.append(Token("number_const", num_lit))
+            
+            # Dot (end of line)
+            elif consume_word(words, "."):
+                tokens.append(Token("dot"))
+
+            # Whitespace indentation
+            elif consume_word(words,str.isspace):
+                tokens.append(Token("indentation",len(last_words[0])))
+            
+            # Identifier
             else:
-                # Identifier
-                tokens.append(Token(Token.IDENTIFIER, words[0]))
-        
-        code_tokens.append(tokens)
-    return sentence
+                tokens.append(Token("identifier", words[0]))
+                consume_word(words)
+    return tokens
