@@ -1,14 +1,13 @@
 END_LINE_SYMBOL = '.'
 WORD_SEPARATOR = ' '
-SPECIAL_CHARACTERS : list = [',','"','{','}',":","(",")"]
+SPECIAL_CHARACTERS : list = [',','{','}',":","(",")"]
 
 class Token:
     IDENTIFIER = 0
     EQ = 1
     NUMBER_CONST = 2
-    TEXT_START = 3
-    TEXT_END = 4
-    BOOL_CONS = 5
+    TEXT_CONST = 3
+    BOOL_CONST = 5
     LIST_OPEN = 6
     LIST_CLOSE = 7
 
@@ -32,15 +31,38 @@ def get_sentences(code : str):
 def get_words(sentence : str):
     words = []
     current_word = ""
+    end_string = -1
     for letter in range(len(sentence)):
+        if letter <= end_string:
+            continue
+
+        if sentence[letter] == "'" or sentence[letter] == '"':
+            if len(current_word) > 0: words.append(current_word)
+            words.append(sentence[letter])
+            skip = False
+            for i in range(letter+1, len(sentence)):
+                if i != sentence[letter]:
+                    current_word += sentence[i]
+                else:
+                    words.append(current_word)
+                    current_word = ""
+                    words.append(sentence[i])
+                    end_string = i
+                    break
+            if end_string > 0: continue
+            raise Exception("No closing quotes for text!")
+        
         if sentence[letter] == WORD_SEPARATOR:
             if len(current_word) > 0: words.append(current_word)
-        
-        elif is_special_character(sentence[letter]):
+            current_word = ""
+            continue
+
+        if is_special_character(sentence[letter]):
             if len(current_word) > 0: words.append(current_word)
+            current_word = ""
             words.append(sentence[letter]) #appends the special character as a word
-        else:
-            current_word = current_word + sentence[letter]
+        
+        current_word += sentence[letter]
 
 last_tokens = []
 
@@ -92,8 +114,8 @@ def tokenize(code : str):
                 # Equality / assignment
                 tokens.append(Token(Token.EQ))
             elif consume_words(words, '"'):
-                if not consume_words_until(words, '"'):
-                    raise Exception('Text (str) did not end with a "')
+                
+                tokens.append(Token(Token.TEXT_CONST, " ".join()))
             else:
                 # Identifier
                 tokens.append(Token(Token.IDENTIFIER, words[0]))
