@@ -1,3 +1,5 @@
+from error import *
+
 WHITESPACE = [" ","\t"]
 SPECIAL_CHARACTERS : list = [',','{','}',':','(',')','.',"'",'+','-','/','*','%','^']
 
@@ -12,7 +14,7 @@ class Token:
     # equals, identifier, 
     # text_const, num_const, bool_const, list_const, 
     # dot, comma, indentation
-    # add, sub, mult, div, mod, pow, sin, cos, tan, atan, acos, asin
+    # add, sub, mult, div, floor div, mod, pow, ceil, floor, sin, cos, tan, atan, acos, asin
     # show, ask
 
 def is_special_character(char:str):
@@ -45,7 +47,7 @@ def get_words(line : str):
                     word_count += 1
                     break
             if end_index > 0: continue
-            raise Exception("No closing quotes for text!")
+            error_msg("Missing closing quotes")
         
         # Whitespace
         if line[letter] in WHITESPACE:
@@ -74,6 +76,7 @@ def get_words(line : str):
             current_word = ""
             words.append(line[letter]) #appends the special character as a word
             word_count += 1
+            continue
         
         current_word += line[letter]
     return words
@@ -129,6 +132,9 @@ def tokenize(code : str):
         words = get_words(line)
         #print(words)
 
+        if len(words) == 0:
+            continue
+
         while len(words) != 0:
             last_words = []
                 
@@ -140,7 +146,7 @@ def tokenize(code : str):
             # Equality / assignment
             if (consume_word(words, "equals") or
                 consume_words(words, "is", "equal", "to") or
-                consume_word(words, "=") or
+                consume_word(words, "==") or
                 consume_word(words, "=")):
                 tokens.append(Token("equals"))
             
@@ -150,46 +156,88 @@ def tokenize(code : str):
 
             # Addition
             elif (consume_word(words,"plus") or
-                consume_word(words,"+")):
+                  consume_word(words,"+")):
                 tokens.append(Token("add"))
+            
+            # Abs / Positive
+            elif (consume_word(words,"positive") or
+                  consume_word(words,"abs")):
+                consume_words(words,"of")
+                tokens.append(Token("abs"))
             
             # Substraction
             elif (consume_word(words,"minus") or
-                consume_word(words,"-")):
+                  consume_word(words,"-")):
                 tokens.append(Token("sub"))
+            
+            # Negative
+            elif consume_word(words,"negative"):
+                tokens.append(Token("negative"))
 
             # Multiplication
             elif (consume_word(words,"times") or
-                consume_words(words,"multiplied","to") or
-                consume_word(words,"*")):
+                  consume_words(words,"multiplied","by") or
+                  consume_word(words,"*")):
                 tokens.append(Token("mult"))
             
             # Division
             elif (consume_words(words,"divided","by") or
-                consume_word(words,"/") or
-                consume_words(words,"over")):
+                  consume_word(words,"/") or
+                  consume_words(words,"over")):
                 tokens.append(Token("div"))
+            
+            # Floor division
+            elif (consume_words(words,"floor","divide") or
+                  consume_words(words,"floor","divide","by") or
+                  consume_word(words,"//")):
+                tokens.append(Token("floor div"))
             
             # Modulo
             elif (consume_words(words,"modulo","of") or
-                consume_word(words,"modulo") or
-                consume_words(words,"%")):
+                  consume_word(words,"modulo") or
+                  consume_word(words,"%")):
                 tokens.append(Token("mod"))
+            
+            # Power
+            elif (consume_words(words,"to","the","power","of") or
+                  consume_words(words,"power","of") or
+                  consume_word(words,"exponent") or
+                  consume_word(words,"^")):
+                tokens.append(Token("pow"))
+            
+            ### MATH FUNCTIONS ###
+            # Floor
+            elif consume_word(words,"floor"):
+                consume_word(words,"of")
+                tokens.append(Token("floor"))
+            
+            # Ceiling
+            elif consume_word(words,"ceiling"):
+                consume_word(words,"of")
+                tokens.append(Token("ceil"))
+            
+            # Sin
+            elif (consume_word(words,"sin") or consume_word(words,"sine")):
+                consume_word(words,"of")
+                tokens.append(Token("sin"))
 
-            ### SYNTAX AND LITERALS ###
+            ### SYNTAX AND CONSTANTS (LITERALS) ###
             # Strings (text)
             elif consume_word(words,lambda x: str.startswith(x,'"')): 
-                tokens.append(Token("text_const", words[0].removeprefix('"')))
-                consume_word(words)
+                tokens.append(Token("text_const", last_words[0].removeprefix('"')))
             
             # Numbers
             elif consume_word(words, str.isnumeric):
-                if peek_word(words, 0) and peek_word(words, str.isnumeric):
+                if peek_word(words, ".") and peek_word(words, str.isnumeric):
                     consume_word(words)
                     consume_word(words)
                 num_lit = float("".join(last_words))
                 if num_lit.is_integer(): num_lit = int(num_lit)
                 tokens.append(Token("num_const", num_lit))
+            
+            elif consume_word(words, "true") or consume_word(words, "false"):
+                value = last_words[0] == "true"
+                tokens.append(Token("bool_const", value))
             
             # Dot (end of line)
             elif consume_word(words, "."):
@@ -204,7 +252,6 @@ def tokenize(code : str):
                 tokens.append(Token("identifier", words[0]))
                 consume_word(words)
         
-        if len(words) > 0:
-            tokens[len(tokens)-1].end_line = True
+        tokens[len(tokens)-1].end_line = True
 
     return tokens

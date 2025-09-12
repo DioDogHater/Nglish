@@ -6,7 +6,10 @@ x = 3.
 show x.
 x == 4.
 show x.
-x = 5+ 5.
+x = 5 + 5.
 123444446343422222sybau__________s = 3.
 show 123444446343422222sybau__________s.
 show x.
+
+show "Hello "+"World!".
+show false.
