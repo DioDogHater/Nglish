@@ -1,4 +1,12 @@
 x is equal to 1.
-x equals 1.
-x = 1.
-x == 1.
+show x.
+x equals 2.
+show x.
+x = 3.
+show x.
+x == 4.
+show x.
+x = 5+ 5.
+123444446343422222sybau__________s = 3.
+show 123444446343422222sybau__________s.
+show x.

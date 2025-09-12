@@ -1,9 +1,10 @@
 WHITESPACE = [" ","\t"]
-SPECIAL_CHARACTERS : list = [',','{','}',":","(",")","."]
+SPECIAL_CHARACTERS : list = [',','{','}',':','(',')','.',"'",'+','-','/','*','%','^']
 
 class Token: 
-    def __init__(self, type:str, value = None):
+    def __init__(self, type:str, value = None, end_line = False):
         self.type, self.value = (type, value)
+        self.end_line = end_line
     def __str__(self): return f"({self.type}: {self.value})"
     def __repr__(self): return self.__str__()
     
@@ -11,6 +12,8 @@ class Token:
     # equals, identifier, 
     # text_const, num_const, bool_const, list_const, 
     # dot, comma, indentation
+    # add, sub, mult, div, mod, pow, sin, cos, tan, atan, acos, asin
+    # show, ask
 
 def is_special_character(char:str):
     return char in SPECIAL_CHARACTERS
@@ -33,7 +36,7 @@ def get_words(line : str):
             if len(current_word) > 0: words.append(current_word)
             current_word = '"'
             for i in range(letter+1, len(line)):
-                if line[i] != line[letter]:
+                if line[i] != '"':
                     current_word += line[i]
                 else:
                     words.append(current_word)
@@ -121,9 +124,10 @@ def tokenize(code : str):
     #//LORE:// lore accurately the Nglish tokenizer is a dog who eats your english homework and digests it into the parser
     
     tokens = []
+
     for line in get_lines(code):
         words = get_words(line)
-        print(words)
+        #print(words)
 
         while len(words) != 0:
             last_words = []
@@ -132,14 +136,45 @@ def tokenize(code : str):
             if consume_word(words, lambda x: len(x) == 0):
                 continue
             
-            ### KEYWORDS ###
+            ### KEYWORDS AND OPERATORS ###
             # Equality / assignment
             if (consume_word(words, "equals") or
                 consume_words(words, "is", "equal", "to") or
                 consume_word(words, "=") or
-                consume_word(words, "==")):
+                consume_word(words, "=")):
                 tokens.append(Token("equals"))
             
+            # Show
+            elif consume_word(words,"show"):
+                tokens.append(Token("show"))
+
+            # Addition
+            elif (consume_word(words,"plus") or
+                consume_word(words,"+")):
+                tokens.append(Token("add"))
+            
+            # Substraction
+            elif (consume_word(words,"minus") or
+                consume_word(words,"-")):
+                tokens.append(Token("sub"))
+
+            # Multiplication
+            elif (consume_word(words,"times") or
+                consume_words(words,"multiplied","to") or
+                consume_word(words,"*")):
+                tokens.append(Token("mult"))
+            
+            # Division
+            elif (consume_words(words,"divided","by") or
+                consume_word(words,"/") or
+                consume_words(words,"over")):
+                tokens.append(Token("div"))
+            
+            # Modulo
+            elif (consume_words(words,"modulo","of") or
+                consume_word(words,"modulo") or
+                consume_words(words,"%")):
+                tokens.append(Token("mod"))
 
             ### SYNTAX AND LITERALS ###
             # Strings (text)
@@ -154,7 +189,7 @@ def tokenize(code : str):
                     consume_word(words)
                 num_lit = float("".join(last_words))
                 if num_lit.is_integer(): num_lit = int(num_lit)
-                tokens.append(Token("number_const", num_lit))
+                tokens.append(Token("num_const", num_lit))
             
             # Dot (end of line)
             elif consume_word(words, "."):
@@ -168,4 +203,8 @@ def tokenize(code : str):
             else:
                 tokens.append(Token("identifier", words[0]))
                 consume_word(words)
+        
+        if len(words) > 0:
+            tokens[len(tokens)-1].end_line = True
+
     return tokens

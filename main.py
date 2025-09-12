@@ -1,4 +1,5 @@
 from lexer import tokenize
+from parser import parse
 # from parser 
 
 import sys
@@ -28,5 +29,7 @@ path = sys.argv[1]
 code = read_file(path)
 tokens = tokenize(code) # the lexer will tokenize all the words
 
-for tk in tokens:
-    print(tk)
+#for tk in tokens:
+#    print(tk)
+
+parse(tokens)
