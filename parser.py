@@ -4,7 +4,16 @@ from error import *
 import math
 
 variables = {}
-functions = {} #token index of start of function
+
+"""class Function:
+    def __init__(self, start, args, arg_defaults):
+        self.start = start
+        self.args = args
+        self.arg_defaults = arg_defaults
+    def start_scope(self, arg_values):
+        for i in range()"""
+
+functions = {}
 
 token_index = 0
 current_line = 1
@@ -19,6 +28,9 @@ def peek_token(tks : list, type = "", i : int = 0):
 
 def digest_token(tks : list, type = ""):
     global token_index, current_line
+
+    if token_index >= len(tks):
+        return False
 
     if tks[token_index].type == type or type == "":
         if tks[token_index].end_line:
@@ -59,14 +71,36 @@ def get_precedence(tk : Token):
         return 0
 
 def parse_term(tks : list):
+    # Constants (literals)
     if peek_token(tks, "num_const") or peek_token(tks,"text_const") or peek_token(tks,"bool_const"):
         return digest_token(tks).value
+
+    # Negative / number
+    elif digest_token(tks,"sub") or digest_token(tks,"negative"):
+        return -parse_expression(tks)
+
+    # Absolute number
+    elif digest_token(tks,"abs") or digest_token(tks, "plus"):
+        return abs(parse_expression(tks))
+
+    # Parentheses
+    elif digest_token(tks, "("):
+        expr = parse_expression(tks)
+        if not digest_token(tks, ")"):
+            fatal_err_msg(f"Parenthese are never closed at line: {current_line}",get_token_context(tks, token_index))
+        return expr
+
+    # Identifier, either variable or function
     elif peek_token(tks,"identifier"):
         identifier = digest_token(tks,"identifier").value
+        while peek_token(tks,"identifier"):
+            identifier += " " + digest_token(tks, "identifier").value
         if identifier in variables.keys():
             return variables[identifier]
         else:
-            error_msg(f"Identifier {bcolors.BOLD}{identifier}{bcolors.ENDC} does not exist (yet)")
+            fatal_err_msg(f"Identifier {bcolors.BOLD}{identifier}{bcolors.ENDC} does not exist (yet)")
+
+    # Invalid term
     else:
         err_msg(f"Invalid term expression: {peek_token(tks)}")
         return None
@@ -85,12 +119,13 @@ def parse_expression(tks : list, min_precedence = 1):
             
             rhs = parse_expression(tks, op_precedence+1)
             if not rhs:
-                error_msg(f"Missing expression after operator at line {current_line}",f"Operator: {operator}, left hand side: {expr}, right hand side: {rhs}")
+                fatal_err_msg(f"Missing expression after operator at line {current_line}:",
+                              get_token_context(tks, token_index - 1))
             
             if operator.type == "add":
-                expr = expr + rhs
+                expr = expr + type(expr)(rhs)
             elif operator.type == "sub":
-                expr = expr - rhs
+                expr = expr - type(expr)(rhs)
             elif operator.type == "mult":
                 expr = expr * rhs
             elif operator.type == "div":
@@ -102,7 +137,7 @@ def parse_expression(tks : list, min_precedence = 1):
             elif operator.type == "pow":
                 expr = math.pow(expr, rhs)
             else:
-                error_msg(f"operator {operator} is not implemented!")
+                fatal_err_msg(f"operator {operator} is not implemented!")
         return expr
     else:
         return None
@@ -116,20 +151,25 @@ def parse(tks : list):
         # Variable assignment
         if peek_token(tks, "identifier"):
             var_name = digest_token(tks, "identifier").value
+            while peek_token(tks, "identifier"):
+                var_name += " " + digest_token(tks, "identifier").value
             if digest_token(tks, "equals"):
                 value = parse_expression(tks)
                 variables[var_name] = value
         
-        # Output
+        # Show output
         elif digest_token(tks,"show"):
-            output = parse_expression(tks)
-            if output == None:
-                error_msg(f"Expected valid expression at line {current_line}")
-            print(f"{bcolors.OKBLUE}SHOW:{bcolors.ENDC} ",output)
+            output = []
+            while len(output) == 0 or digest_token(tks,","):
+                expr = parse_expression(tks)
+                if expr == None:
+                    fatal_err_msg("Expected valid expression",get_token_context(tks,token_index))
+                output.append(str(expr))
+            print(f"{bcolors.OKBLUE}SHOW:{bcolors.ENDC} ",", ".join(output))
 
-        # Line end
-        elif digest_token(tks,"dot") or digest_token(tks,"comma"):
+        # Skip punctuation
+        elif digest_token(tks,".") or digest_token(tks,","):
             continue
         
         else:
-            error_msg(f"{bcolors.FAIL}syntax error:{bcolors.ENDC} invalid statement at line {current_line}",f"{bcolors.BOLD}{peek_token(tks)}{bcolors.ENDC}")
+            fatal_err_msg(f"{bcolors.FAIL}syntax error:{bcolors.ENDC} invalid statement at line {current_line}",get_token_context(tks,token_index))

@@ -23,14 +23,41 @@ def display_err_msg(msg : tuple):
 def err_msg(*msg : str):
     display_err_msg(msg)
 
-def error_msg(*msg : str):
+def fatal_err_msg(*msg : str):
     display_err_msg(msg)
     exit(-1)
 
 def get_token_context(tks : list, index : int):
-    tokens = ""
-    for i in range(index, len(tks)):
-        tokens += str(tks[i])
-        if tks[i].end_line:
-            break
-    return tokens
+    tokens = []
+
+    # Find all tokens after last line
+    start = index - 1
+    while start >= 0 and not tks[start].end_line:
+        tokens.insert(0, tks[start])
+        start -= 1
+
+    # Add the token we want the context of
+    tokens.append(tks[index])
+
+    # Get all tokens after, until end of line
+    end = index + 1
+    while end < len(tks) and not tks[end-1].end_line:
+        tokens.append(tks[end])
+        end += 1
+
+    # Make accumulated tokens readable
+    result = ""
+    for tk in tokens:
+        if result != "":
+            result += " "
+
+        if tk == tks[index]:
+            result += bcolors.WARNING + str(tk) + bcolors.ENDC
+        else:
+            result += str(tk)
+
+    return result
+
+
+
+

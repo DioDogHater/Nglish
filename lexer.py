@@ -7,14 +7,13 @@ class Token:
     def __init__(self, type:str, value = None, end_line = False):
         self.type, self.value = (type, value)
         self.end_line = end_line
-    def __str__(self): return f"({self.type}: {self.value})"
+    def __str__(self): return str(self.value) if self.value != None else self.type
     def __repr__(self): return self.__str__()
     
     #TOKEN TYPES:
     # equals, identifier, 
     # text_const, num_const, bool_const, list_const, 
-    # dot, comma, indentation
-    # add, sub, mult, div, floor div, mod, pow, ceil, floor, sin, cos, tan, atan, acos, asin
+    # add, abs, sub, negative, mult, div, floor div, mod, pow, ceil, floor, sin, cos, tan, atan, acos, asin
     # show, ask
 
 def is_special_character(char:str):
@@ -83,14 +82,16 @@ def get_words(line : str):
 
 last_words = []
 
+# Returns next word or checks if its the right word
 def peek_word(words : list, val = "", i : int = 0):
-    if len(words) >= i:
+    if len(words) > i:
         if val == "":
             return True
-        return (val(words[i]) if callable(val) else words[i] == words)
+        return (val(words[i]) if callable(val) else words[i] == val)
     else:
         return False
 
+# Pop word if its the right word
 def consume_word(words : list, req = ""):
     global last_words
     
@@ -103,6 +104,7 @@ def consume_word(words : list, req = ""):
     else:
         return False
 
+# Pop word sequence if it matches exactly
 def consume_words(words : list, *required : str):
     global last_words
 
@@ -122,6 +124,7 @@ def consume_words(words : list, *required : str):
     return True
 
 
+# Transforms code into tokens
 def tokenize(code : str):
     global last_words
     #//LORE:// lore accurately the Nglish tokenizer is a dog who eats your english homework and digests it into the parser
@@ -146,7 +149,6 @@ def tokenize(code : str):
             # Equality / assignment
             if (consume_word(words, "equals") or
                 consume_words(words, "is", "equal", "to") or
-                consume_word(words, "==") or
                 consume_word(words, "=")):
                 tokens.append(Token("equals"))
             
@@ -161,8 +163,8 @@ def tokenize(code : str):
             
             # Abs / Positive
             elif (consume_word(words,"positive") or
+                  consume_words(words,"abs","of") or
                   consume_word(words,"abs")):
-                consume_words(words,"of")
                 tokens.append(Token("abs"))
             
             # Substraction
@@ -187,7 +189,7 @@ def tokenize(code : str):
                 tokens.append(Token("div"))
             
             # Floor division
-            elif (consume_words(words,"floor","divide") or
+            elif (consume_words(words,"floor","divided","by") or
                   consume_words(words,"floor","divide","by") or
                   consume_word(words,"//")):
                 tokens.append(Token("floor div"))
@@ -202,6 +204,7 @@ def tokenize(code : str):
             elif (consume_words(words,"to","the","power","of") or
                   consume_words(words,"power","of") or
                   consume_word(words,"exponent") or
+                  consume_words(words,"raised","by") or
                   consume_word(words,"^")):
                 tokens.append(Token("pow"))
             
@@ -221,6 +224,11 @@ def tokenize(code : str):
                 consume_word(words,"of")
                 tokens.append(Token("sin"))
 
+            # Cos
+            elif (consume_word(words,"cos") or consume_word(words,"cosine")):
+                consume_word(words,"of")
+                tokens.append(Token("cos"))
+
             ### SYNTAX AND CONSTANTS (LITERALS) ###
             # Strings (text)
             elif consume_word(words,lambda x: str.startswith(x,'"')): 
@@ -228,7 +236,7 @@ def tokenize(code : str):
             
             # Numbers
             elif consume_word(words, str.isnumeric):
-                if peek_word(words, ".") and peek_word(words, str.isnumeric):
+                if peek_word(words, ".") and peek_word(words, str.isnumeric, 1):
                     consume_word(words)
                     consume_word(words)
                 num_lit = float("".join(last_words))
@@ -239,9 +247,9 @@ def tokenize(code : str):
                 value = last_words[0] == "true"
                 tokens.append(Token("bool_const", value))
             
-            # Dot (end of line)
-            elif consume_word(words, "."):
-                tokens.append(Token("dot"))
+            # In case of a special character, just make the type be the character itself
+            elif consume_word(words, lambda x: x in SPECIAL_CHARACTERS):
+                tokens.append(Token(last_words[0]))
 
             # Whitespace indentation
             elif consume_word(words,str.isspace):

@@ -1,16 +1,8 @@
 from lexer import tokenize
 from parser import parse
-# from parser 
+from error import *
 
 import sys
-
-def open_file(path : str, mode : str = "r"):
-    try:
-        file = open(path, mode)
-        return file
-    except OSError as e:
-        print(e)
-        return None
 
 def read_file(path : str):
     try:
@@ -19,7 +11,7 @@ def read_file(path : str):
         file.close()
         return data
     except OSError as e:
-        print(e)
+        err_msg("Unable to open file!",e)
         return None
 
 def print_usage():
@@ -28,7 +20,7 @@ def print_usage():
 
 if len(sys.argv) < 2:
     print_usage()
-    print("MISSING INPUT FILE!")
+    print(bcolors.FAIL + "MISSING INPUT FILE" + bcolors.ENDC)
     exit(-1)
 
 arg = sys.argv[1]
