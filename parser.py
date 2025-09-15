@@ -212,7 +212,7 @@ def parse_expression(tks : list, min_precedence = 1):
         while True:
             # Check if operator
             operator = peek_token(tks)
-            if not operator:
+            if operator == None:
                 break
 
             # If it's a conversion, just convert and continue to next term
@@ -289,7 +289,88 @@ def parse_expression(tks : list, min_precedence = 1):
         return expr
     else:
         return None
+
+def get_logical_precedence(tk : Token):
+    if tk.type == "not":
+        return 1
+    elif tk.type == "and":
+        return 2
+    elif tk.type == "or" or tk.type == "xor":
+        return 3
+    elif tk.type == "implies":
+        return 4
+    elif tk.type == "biconditional":
+        return 5
+    else:
+        return 0
+
+def parse_term_proposition(tks : list):
+    comparisons = {
+        "compare equal": lambda x, y: x == y,
+        "not equal to": lambda x, y: x != y,
+        "greater than": lambda x, y: x > y,
+        "greater or equal to": lambda x, y: x >= y,
+        "lower than": lambda x, y: x < y,
+        "lower or equal to": lambda x, y: x <= y
+    }
+
+    if digest_token(tks,"not"):
+        prop = parse_term_proposition(tks)
+        if prop == None:
+            fatal_err_msg(f"Expected valid expression at line {current_line}",get_token_context(tks,token_index-1))
+        return not prop
+
+    # Left hand side
+    lhs = parse_expression(tks)
+    if lhs == None:
+        fatal_err_msg(f"Expected valid expression at line {current_line}",get_token_context(tks,token_index-1))
+    
+    # Comparison
+    if peek_token(tks, lambda x: x in comparisons.keys()):
+        operator = digest_token(tks)
+        rhs = parse_expression(tks)
+        if rhs == None:
+            fatal_err_msg(f"Expected valid expression at line {current_line}",get_token_context(tks,token_index-1))
+        try:
+            return comparisons[operator.type](lhs,rhs)
+        except Exception as e:
+            fatal_err_msg(f"{bcolors.WARNING}Failed to evaluate comparison:{bcolors.ENDC} {e}",get_token_context(tks,tks.index(operator)))
+    else:
+        err_msg(f"Invalid proposition term at line {current_line}",get_token_context(tks,token_index-1))
+        return None
+
+
+def parse_proposition(tks : list, min_precedence = 1):
+    # boolean expression (proposition)
+    prop = parse_term_proposition(tks)
+    
+    if prop != None:
+        while True:
+            operator = peek_token(tks)
+            if operator == None:
+                break
+            if get_logical_precedence(operator) < min_precedence:
+                break
+            digest_token(tks)
+
+            rhs = parse_term_proposition(tks)
+            if rhs == None:
+                fatal_err_msg(f"Missing proposition after logical operator at line {current_line}",get_token_context(tks,tks.index(operator)))
             
+            if operator.type == "and":
+                return prop and rhs
+            elif operator.type == "or":
+                return prop or rhs
+            elif operator.type == "xor":
+                return (prop or rhs) and not (prop and rhs)
+            elif operator.type == "implication":
+                return (prop or rhs) and rhs
+            elif operator.type == "biconditional":
+                return not (prop or rhs) or (prop and rhs)
+
+        return prop
+    else:
+        return None
 
 def parse(tks : list):
     global token_index

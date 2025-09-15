@@ -31,7 +31,7 @@ if arg == "-h" or arg == "--help":
 
 code = read_file(arg)
 
-if not code:
+if code == None:
     exit(0)
 
 tokens = tokenize(code) # the lexer will tokenize all the words

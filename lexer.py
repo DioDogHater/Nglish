@@ -1,7 +1,7 @@
 from error import *
 
 WHITESPACE = [" ","\t"]
-SPECIAL_CHARACTERS : list = [',','{','}',':','(',')','.',"'",'+','-','/','*','%','^']
+SPECIAL_CHARACTERS : list = [',','{','}',':','(',')','.',"'",'+','-','/','*','%','^','<','>','=','!',]
 
 class Token: 
     def __init__(self, type:str, value = None, end_line = False):
@@ -51,7 +51,7 @@ def get_words(line : str):
                     word_count += 1
                     break
             if end_index > 0: continue
-            error_msg("Missing closing quotes")
+            fatal_err_msg(f"Missing closing quotes: {current_word}","TOKENIZER ERROR")
         
         # Whitespace
         if line[letter] in WHITESPACE:
@@ -159,7 +159,6 @@ def tokenize(code : str):
             # Equality / assignment
             if (consume_word(words,"equals") or
                 consume_words(words,"is","equal","to") or
-                consume_words(words,"is","equals","to")or
                 consume_word(words,"=")):
                 tokens.append(Token("equals"))
             
@@ -177,6 +176,25 @@ def tokenize(code : str):
                   consume_words(words,"the","answer","of") or
                   consume_words(words,"answer","of")):
                 tokens.append(Token("ask"))
+            
+            # If
+            elif consume_word(words,"if"):
+                tokens.append(Token("if"))
+            
+            # Then
+            elif (consume_word(words,"then") or
+                  consume_words(words,",","then")):
+                tokens.append(Token("then"))
+            
+            # Else if
+            elif (consume_words(words,"else", "if") or
+                  consume_words(words,"else",",","if")):
+                tokens.append(Token("else if"))
+            
+            # Else
+            elif (consume_words(words,"else") or
+                  consume_words(words,"otherwise")):
+                tokens.append(Token("else"))
 
             # Addition
             elif (consume_word(words,"plus") or
@@ -229,6 +247,78 @@ def tokenize(code : str):
                   consume_words(words,"raised","by") or
                   consume_word(words,"^")):
                 tokens.append(Token("pow","^"))
+            
+            ### LOGICAL / COMPARISON OPERATORS ###
+            # Equality check
+            elif (consume_words(words,"=","=") or
+                  consume_words(words,"is","the","same","as") or
+                  consume_words(words,"is","equivalent","to")):
+                tokens.append(Token("compare equal","equal to"))
+            
+            # Inequality check
+            elif (consume_words(words,"!","=") or
+                  consume_words(words,"not","equal","to") or
+                  consume_words(words,"not","equal") or
+                  consume_words(words,"is","not","equal","to") or
+                  consume_words(words,"is","not","the","same","as") or
+                  consume_words(words,"is","not","equivalent","to")):
+                tokens.append(Token("not equal to"))
+            
+            # Greater than
+            elif (consume_word(words,">") or
+                  consume_words(words,"greater","than") or
+                  consume_words(words,"is","greater","than")):
+                tokens.append(Token("greater than"))
+            
+            # Greater or equal to
+            elif (consume_words(words,">","=") or
+                  consume_words(words,"greater","than","or","equal","to") or
+                  consume_words(words,"greater","or","equal","to") or
+                  consume_words(words,"is","greater","or","equal","to")):
+                tokens.append(Token("greater or equal to"))
+            
+            # Lower than
+            elif (consume_word(words,"<") or
+                  consume_words(words,"lower","than") or
+                  consume_words(words,"is","lower","than")):
+                tokens.append(Token("lower than"))
+            
+            # Lower or equal to
+            elif (consume_words(words,"<","=") or
+                  consume_words(words,"lower","than","or","equal","to") or
+                  consume_words(words,"lower","or","equal","to") or
+                  consume_words(words,"is","lower","or","equal","to")):
+                tokens.append(Token("lower or equal to"))
+            
+            # NOT
+            elif (consume_word(words,"not") or
+                  consume_word(words,"!")):
+                tokens.append(Token("not"))
+
+            # AND
+            elif consume_word(words,"and"):
+                tokens.append(Token("and"))
+            
+            # XOR
+            elif (consume_word(words,"xor") or
+                  consume_word(words,"or","else") or
+                  consume_words(words,"exclusive or")):
+                tokens.append(Token("xor"))
+
+            # OR
+            elif (consume_word(words,"or") or
+                  consume_words(words,"and","/","or") or
+                  consume_words(words,"inclusive or")):
+                tokens.append(Token("or"))
+            
+            # IMPLICATION
+            elif (consume_word(words,"implies") or
+                  consume_words(words,"implies","that")):
+                tokens.append(Token("implies"))
+            
+            # BICONDITIONAL
+            elif (consume_word(words,"biconditional")):
+                tokens.append(Token("biconditional"))
             
             ### MATH FUNCTIONS ###
             # Floor
@@ -337,8 +427,8 @@ def tokenize(code : str):
 
             # Whitespace indentation
             elif consume_word(words,str.isspace):
-                tokens.append(Token("indentation",len(last_words[0])))
-            
+                tokens.append(Token("indentation",sum([3 if i == "\t" else 1 for i in last_words[0]])))
+
             # Identifier
             else:
                 tokens.append(Token("identifier", words[0]))
