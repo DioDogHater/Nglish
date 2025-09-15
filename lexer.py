@@ -7,14 +7,19 @@ class Token:
     def __init__(self, type:str, value = None, end_line = False):
         self.type, self.value = (type, value)
         self.end_line = end_line
-    def __str__(self): return str(self.value) if self.value != None else self.type
+    def __str__(self):
+        if self.value != None:
+            return str(self.value) if self.type != "text_const" else '"'+self.value+'"'
+        else:
+            return self.type
     def __repr__(self): return self.__str__()
     
     #TOKEN TYPES:
-    # equals, identifier, 
+    # equals, identifier, in, with, as
     # text_const, num_const, bool_const, list_const, 
-    # add, abs, sub, negative, mult, div, floor div, mod, pow, ceil, floor, sin, cos, tan, atan, acos, asin
+    # add, abs, sub, negative, mult, div, floor div, mod, pow, ceil, floor, sin, cos, tan, atan, acos, asin, atan2
     # show, ask
+    # to text, to number, to bool
 
 def is_special_character(char:str):
     return char in SPECIAL_CHARACTERS
@@ -78,6 +83,11 @@ def get_words(line : str):
             continue
         
         current_word += line[letter]
+
+    # Add leftover word
+    if len(current_word) > 0:
+        words.append(current_word)
+
     return words
 
 last_words = []
@@ -133,9 +143,9 @@ def tokenize(code : str):
 
     for line in get_lines(code):
         words = get_words(line)
-        #print(words)
 
         if len(words) == 0:
+            tokens.append(Token(".",end_line=True))
             continue
 
         while len(words) != 0:
@@ -147,19 +157,31 @@ def tokenize(code : str):
             
             ### KEYWORDS AND OPERATORS ###
             # Equality / assignment
-            if (consume_word(words, "equals") or
-                consume_words(words, "is", "equal", "to") or
-                consume_word(words, "=")):
+            if (consume_word(words,"equals") or
+                consume_words(words,"is","equal","to") or
+                consume_words(words,"is","equals","to")or
+                consume_word(words,"=")):
                 tokens.append(Token("equals"))
             
             # Show
-            elif consume_word(words,"show"):
+            elif (consume_word(words,"show") or
+                  consume_word(words,"display") or
+                  consume_word(words,"print") or
+                  consume_word(words,"say")):
                 tokens.append(Token("show"))
+
+            # Ask
+            elif (consume_words(words,"ask","question") or
+                  consume_word(words,"ask") or
+                  consume_word(words,"prompt") or
+                  consume_words(words,"the","answer","of") or
+                  consume_words(words,"answer","of")):
+                tokens.append(Token("ask"))
 
             # Addition
             elif (consume_word(words,"plus") or
                   consume_word(words,"+")):
-                tokens.append(Token("add"))
+                tokens.append(Token("add","+"))
             
             # Abs / Positive
             elif (consume_word(words,"positive") or
@@ -170,35 +192,35 @@ def tokenize(code : str):
             # Substraction
             elif (consume_word(words,"minus") or
                   consume_word(words,"-")):
-                tokens.append(Token("sub"))
+                tokens.append(Token("sub","-"))
             
             # Negative
             elif consume_word(words,"negative"):
-                tokens.append(Token("negative"))
+                tokens.append(Token("negative","-"))
 
             # Multiplication
             elif (consume_word(words,"times") or
                   consume_words(words,"multiplied","by") or
                   consume_word(words,"*")):
-                tokens.append(Token("mult"))
+                tokens.append(Token("mult","*"))
             
             # Division
             elif (consume_words(words,"divided","by") or
                   consume_word(words,"/") or
                   consume_words(words,"over")):
-                tokens.append(Token("div"))
+                tokens.append(Token("div","/"))
             
             # Floor division
             elif (consume_words(words,"floor","divided","by") or
                   consume_words(words,"floor","divide","by") or
                   consume_word(words,"//")):
-                tokens.append(Token("floor div"))
+                tokens.append(Token("floor div","//"))
             
             # Modulo
             elif (consume_words(words,"modulo","of") or
                   consume_word(words,"modulo") or
                   consume_word(words,"%")):
-                tokens.append(Token("mod"))
+                tokens.append(Token("mod","%"))
             
             # Power
             elif (consume_words(words,"to","the","power","of") or
@@ -206,7 +228,7 @@ def tokenize(code : str):
                   consume_word(words,"exponent") or
                   consume_words(words,"raised","by") or
                   consume_word(words,"^")):
-                tokens.append(Token("pow"))
+                tokens.append(Token("pow","^"))
             
             ### MATH FUNCTIONS ###
             # Floor
@@ -215,19 +237,59 @@ def tokenize(code : str):
                 tokens.append(Token("floor"))
             
             # Ceiling
-            elif consume_word(words,"ceiling"):
+            elif (consume_word(words,"ceiling") or
+                  consume_word(words,"ceil")):
                 consume_word(words,"of")
                 tokens.append(Token("ceil"))
             
             # Sin
-            elif (consume_word(words,"sin") or consume_word(words,"sine")):
+            elif (consume_word(words,"sin") or
+                  consume_word(words,"sine") or
+                  consume_words(words,"the","sine")):
                 consume_word(words,"of")
                 tokens.append(Token("sin"))
 
             # Cos
-            elif (consume_word(words,"cos") or consume_word(words,"cosine")):
+            elif (consume_word(words,"cos") or
+                  consume_word(words,"cosine") or
+                  consume_words(words,"the","cosine")):
                 consume_word(words,"of")
                 tokens.append(Token("cos"))
+
+            # Tan
+            elif (consume_word(words,"tan") or
+                  consume_word(words,"tangent") or
+                  consume_words(words,"the","tangent")):
+                consume_word(words,"of")
+                tokens.append(Token("tan"))
+
+            # Arc sine / asin
+            elif (consume_word(words,"asin") or
+                  consume_words(words,"arc","sine") or
+                  consume_words(words,"the","arc","sine")):
+                consume_word(words,"of")
+                tokens.append(Token("asin"))
+
+            # Arc cosine / acos
+            elif (consume_word(words,"acos") or
+                  consume_words(words,"arc","cosine") or
+                  consume_words(words,"the","arc","cosine")):
+                consume_word(words,"of")
+                tokens.append(Token("acos"))
+
+            # Arc tangent / atan
+            elif (consume_word(words,"atan") or
+                  consume_words(words,"arc","tangent") or
+                  consume_words(words,"the","arc","tangent")):
+                consume_word(words,"of")
+                tokens.append(Token("atan"))
+
+            # Atan2 / Angle to
+            elif (consume_word(words,"atan2") or
+                  consume_words(words,"angle","to") or
+                  consume_words(words,"the","angle","to")):
+                consume_word(words,"of")
+                tokens.append(Token("atan2"))
 
             ### SYNTAX AND CONSTANTS (LITERALS) ###
             # Strings (text)
@@ -243,9 +305,31 @@ def tokenize(code : str):
                 if num_lit.is_integer(): num_lit = int(num_lit)
                 tokens.append(Token("num_const", num_lit))
             
+            # Boolean constants (true or false)
             elif consume_word(words, "true") or consume_word(words, "false"):
-                value = last_words[0] == "true"
+                value = (last_words[0] == "true")
                 tokens.append(Token("bool_const", value))
+
+            # Text conversion
+            elif (consume_words(words,"to","text") or
+                  consume_words(words,"as","text") or
+                  consume_words(words,"converted","to","text")):
+                tokens.append(Token("to text"))
+
+            # Number conversion
+            elif (consume_words(words,"to","number") or
+                  consume_words(words,"as","number") or
+                  consume_words(words,"converted","to","number")):
+                tokens.append(Token("to number"))
+
+            # Boolean conversion
+            elif (consume_words(words,"to","bool") or
+                  consume_words(words,"to","boolean") or
+                  consume_words(words,"as","bool") or
+                  consume_words(words,"as","boolean") or
+                  consume_words(words,"converted","to","bool") or
+                  consume_words(words,"converted","to","boolean")):
+                tokens.append(Token("to bool"))
             
             # In case of a special character, just make the type be the character itself
             elif consume_word(words, lambda x: x in SPECIAL_CHARACTERS):

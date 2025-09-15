@@ -1,6 +1,14 @@
 x is equal to 1.
 y equals 5 ^ 2.
 
-x = (x + 5) divided by y,
+x = (x + 5) divided by y.
 
-show x, y.
+say "x = " x, "y = " y.
+my name is equal to the answer of "What is your name?".
+
+display "Hello "my name"!".
+
+age is equals to ask question "What is your age?" as number.
+
+show "You are "age" years old!".
+print "You are the youngest person ever!".
