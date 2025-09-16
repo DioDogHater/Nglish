@@ -31,7 +31,7 @@ def get_words(line : str):
     words = []
     current_word = ""
     end_index = -1
-    word_count = 0
+
     for letter in range(len(line)):
         # Skip to the next character we want
         if letter <= end_index:
@@ -48,7 +48,6 @@ def get_words(line : str):
                     words.append(current_word)
                     current_word = ""
                     end_index = i
-                    word_count += 1
                     break
             if end_index > 0: continue
             fatal_err_msg(f"Missing closing quotes: {current_word}","TOKENIZER ERROR")
@@ -57,15 +56,6 @@ def get_words(line : str):
         if line[letter] in WHITESPACE:
             if len(current_word) > 0:
                 words.append(current_word)
-                word_count += 1
-            elif word_count == 0: #no words yet
-                # Find the last whitespace
-                for i in range(letter+1, len(line)):
-                    if not line[i] in WHITESPACE:
-                        current_word = " " * (i - letter)
-                        words.append(current_word)
-                        end_index = i
-                        break
             
             current_word = ""
             continue
@@ -79,7 +69,6 @@ def get_words(line : str):
             if len(current_word) > 0: words.append(current_word)
             current_word = ""
             words.append(line[letter]) #appends the special character as a word
-            word_count += 1
             continue
         
         current_word += line[letter]
@@ -195,6 +184,11 @@ def tokenize(code : str):
             elif (consume_words(words,"else") or
                   consume_words(words,"otherwise")):
                 tokens.append(Token("else"))
+            
+            # End
+            elif (consume_word(words,"end") or
+                  consume_words(words,"finish")):
+                tokens.append(Token("end"))
 
             # Addition
             elif (consume_word(words,"plus") or
@@ -272,7 +266,6 @@ def tokenize(code : str):
             
             # Greater or equal to
             elif (consume_words(words,">","=") or
-                  consume_words(words,"greater","than","or","equal","to") or
                   consume_words(words,"greater","or","equal","to") or
                   consume_words(words,"is","greater","or","equal","to")):
                 tokens.append(Token("greater or equal to"))
@@ -280,14 +273,18 @@ def tokenize(code : str):
             # Lower than
             elif (consume_word(words,"<") or
                   consume_words(words,"lower","than") or
-                  consume_words(words,"is","lower","than")):
+                  consume_words(words,"lesser","than") or
+                  consume_words(words,"is","lower","than") or
+                  consume_words(words,"is","lesser","than")):
                 tokens.append(Token("lower than"))
             
             # Lower or equal to
             elif (consume_words(words,"<","=") or
-                  consume_words(words,"lower","than","or","equal","to") or
+                  consume_words(words,"lesser","or","equal","to") or
                   consume_words(words,"lower","or","equal","to") or
-                  consume_words(words,"is","lower","or","equal","to")):
+                  consume_words(words,"lesser","or","equal","to") or
+                  consume_words(words,"is","lower","or","equal","to") or
+                  consume_words(words,"is","lesser","or","equal","to")):
                 tokens.append(Token("lower or equal to"))
             
             # NOT
@@ -301,7 +298,7 @@ def tokenize(code : str):
             
             # XOR
             elif (consume_word(words,"xor") or
-                  consume_word(words,"or","else") or
+                  consume_words(words,"or","else") or
                   consume_words(words,"exclusive or")):
                 tokens.append(Token("xor"))
 
@@ -424,10 +421,6 @@ def tokenize(code : str):
             # In case of a special character, just make the type be the character itself
             elif consume_word(words, lambda x: x in SPECIAL_CHARACTERS):
                 tokens.append(Token(last_words[0]))
-
-            # Whitespace indentation
-            elif consume_word(words,str.isspace):
-                tokens.append(Token("indentation",sum([3 if i == "\t" else 1 for i in last_words[0]])))
 
             # Identifier
             else:

@@ -1,5 +1,6 @@
 from lexer import Token
 from error import *
+from scopes import *
 
 import math
 
@@ -44,24 +45,6 @@ def digest_token(tks : list, type = ""):
         return tks[token_index-1]
     else:
         return None
-
-def digest_tokens(tks : list, *types):
-    global token_index, current_line
-
-    if token_index+len(types) > len(tks):
-        return None
-
-    token_values = []
-    for i in range(len(types)):
-        token_values.append(tks[token_index+i].value)
-        if tks[token_index+i].type != types[i]:
-            return None
-    
-    for tk in token_values:
-        if tk.end_line: current_line += 1
-    
-    token_index += len(types)
-    return token_values
 
 def get_precedence(tk : Token):
     if tk.type == "add" or tk.type == "sub":
@@ -326,7 +309,7 @@ def parse_term_proposition(tks : list):
         fatal_err_msg(f"Expected valid expression at line {current_line}",get_token_context(tks,token_index-1))
     
     # Comparison
-    if peek_token(tks, lambda x: x in comparisons.keys()):
+    if peek_token(tks) and peek_token(tks).type in comparisons.keys():
         operator = digest_token(tks)
         rhs = parse_expression(tks)
         if rhs == None:
@@ -372,6 +355,22 @@ def parse_proposition(tks : list, min_precedence = 1):
     else:
         return None
 
+# Parse an if or else if statement
+def parse_if(tks : list):
+    if_index = token_index - 1
+    condition = parse_proposition(tks)
+    push_scope(Scope(if_index, "if", value=condition))
+    if condition == None:
+        fatal_err_msg(f"Expected valid condition at line {current_line}",get_token_context(tks, token_index-1))
+    if not digest_token(tks, "then") and not digest_token(tks, ":"):
+        fatal_err_msg(f"Expected then after if at line {current_line}",get_token_context(tks, token_index-1))
+    if not digest_token(tks, ":"):
+        fatal_err_msg(f"Expected : at line {current_line}",get_token_context(tks, token_index-1))
+    if not condition:
+       while not (peek_token(tks,"end") or peek_token(tks,"else if") or peek_token(tks,"else")):
+            if digest_token(tks) == None:
+                fatal_err_msg(f"Expected end after to close if statement at line {current_line}",get_token_context(tks, token_index-1))
+
 def parse(tks : list):
     global token_index
     token_index = 0
@@ -402,6 +401,44 @@ def parse(tks : list):
                 fatal_err_msg(f"Expected dot at the end of sentence at line: {current_line}",get_token_context(tks, token_index-1))
             print(f"{bcolors.OKBLUE}>{bcolors.ENDC} ",", ".join(output))
 
+        # If statement
+        elif digest_token(tks,"if"):
+            parse_if(tks)
+        
+        # Elif statement
+        elif digest_token(tks,"else if"):
+            if current_scope() and current_scope().type == "if":
+                if current_scope().value:
+                    while not peek_token(tks,"end"):
+                        if digest_token(tks) == None:
+                            fatal_err_msg(f"Expected end after to close if statement at line {current_line}",get_token_context(tks, token_index-1))
+                else:
+                    pop_scope(variables)
+                    parse_if(tks)
+            else:
+                fatal_err_msg(f"No if before else if at line {current_line}",get_token_context(tks, token_index-1))
+        
+        # Else statement
+        elif digest_token(tks,"else"):
+            if not digest_token(tks,":"):
+                fatal_err_msg(f"Expected : after else at line {current_line}",get_token_context(tks, token_index-1))
+            if current_scope() and current_scope().type == "if":
+                if current_scope().value:
+                    while not peek_token(tks,"end"):
+                        if digest_token(tks) == None:
+                            fatal_err_msg(f"Expected end after to close if statement at line {current_line}",get_token_context(tks, token_index-1))
+                else:
+                    pop_scope(variables)
+                    push_scope(Scope(token_index-1,"else"))
+            else:
+                fatal_err_msg(f"No if before else at line {current_line}",get_token_context(tks, token_index-1))
+
+        # End
+        elif digest_token(tks,"end"):
+            if current_scope() == None:
+                fatal_err_msg(f"Unexpected end at line {current_line}",get_token_context(tks, token_index-1))
+            pop_scope(variables)
+
         # Skip unecessary punctuation
         elif digest_token(tks,".") or digest_token(tks,","):
             continue
@@ -411,4 +448,4 @@ def parse(tks : list):
             continue
         
         else:
-            fatal_err_msg(f"Invalid statement at line {current_line}",get_token_context(tks,token_index))
+            fatal_err_msg(f"Invalid statement at line {current_line}",get_token_context(tks, token_index))

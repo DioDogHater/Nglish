@@ -1,9 +1,3 @@
-x is equal to 1.
-y equals 5 ^ 2.
-
-x = (x + 5) divided by y.
-
-say "x = " x, "y = " y.
 my name is equal to the answer of "What is your name?".
 
 display "Hello "my name"!".
@@ -11,4 +5,11 @@ display "Hello "my name"!".
 age is equal to ask question "What is your age?" as number.
 
 show "You are "age" years old!".
-print "You are the youngest person ever!".
+
+if age is lower or equal to 4 then:
+    display "You are the youngest person ever!".
+else if age is greater or equal to 18 then:
+    say "You are an unc!".
+else:
+    say "You are a minor.".
+end.
